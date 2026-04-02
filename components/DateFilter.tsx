@@ -7,7 +7,8 @@ export type DateFilterOption =
   | 'yesterday'
   | 'last7days'
   | 'currentMonth'
-  | 'lastMonth';
+  | 'lastMonth'
+  | 'custom';
 
 interface DateFilterProps {
   value: DateFilterOption;
@@ -16,6 +17,8 @@ interface DateFilterProps {
 
 const DateFilter: React.FC<DateFilterProps> = ({ value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
 
   const handleOptionSelect = (option: DateFilterOption) => {
     if (option === 'all') {
@@ -24,9 +27,11 @@ const DateFilter: React.FC<DateFilterProps> = ({ value, onChange }) => {
       return;
     }
 
+    if (option === 'custom') return;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     let startDate: Date;
     let endDate: Date = new Date(today);
     endDate.setHours(23, 59, 59, 999);
@@ -69,6 +74,17 @@ const DateFilter: React.FC<DateFilterProps> = ({ value, onChange }) => {
     setIsOpen(false);
   };
 
+  const handleCustomApply = () => {
+    if (!customStart || !customEnd) return;
+
+    const startDate = new Date(customStart);
+    const endDate = new Date(customEnd);
+    endDate.setHours(23, 59, 59, 999);
+
+    onChange('custom', startDate, endDate);
+    setIsOpen(false);
+  };
+
   const getDisplayLabel = () => {
     switch (value) {
       case 'all':
@@ -83,6 +99,8 @@ const DateFilter: React.FC<DateFilterProps> = ({ value, onChange }) => {
         return 'Current Month';
       case 'lastMonth':
         return 'Last Month';
+      case 'custom':
+        return 'Custom Range';
       default:
         return 'Select Date';
     }
@@ -101,72 +119,62 @@ const DateFilter: React.FC<DateFilterProps> = ({ value, onChange }) => {
 
       {isOpen && (
         <>
-          <div 
-            className="fixed inset-0 z-10" 
+          <div
+            className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           />
           <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
             <div className="p-2">
-              <button
-                onClick={() => handleOptionSelect('all')}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
-                  value === 'all' 
-                    ? 'bg-indigo-50 text-indigo-700 font-medium' 
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                All Data
-              </button>
-              <button
-                onClick={() => handleOptionSelect('today')}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
-                  value === 'today' 
-                    ? 'bg-indigo-50 text-indigo-700 font-medium' 
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                Today
-              </button>
-              <button
-                onClick={() => handleOptionSelect('yesterday')}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
-                  value === 'yesterday' 
-                    ? 'bg-indigo-50 text-indigo-700 font-medium' 
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                Yesterday
-              </button>
-              <button
-                onClick={() => handleOptionSelect('last7days')}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
-                  value === 'last7days' 
-                    ? 'bg-indigo-50 text-indigo-700 font-medium' 
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                Last 7 Days
-              </button>
-              <button
-                onClick={() => handleOptionSelect('currentMonth')}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
-                  value === 'currentMonth'
-                    ? 'bg-indigo-50 text-indigo-700 font-medium'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                Current Month
-              </button>
-              <button
-                onClick={() => handleOptionSelect('lastMonth')}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
-                  value === 'lastMonth'
-                    ? 'bg-indigo-50 text-indigo-700 font-medium'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                Last Month
-              </button>
+
+              {/* existing options */}
+              {[
+                ['all', 'All Data'],
+                ['today', 'Today'],
+                ['yesterday', 'Yesterday'],
+                ['last7days', 'Last 7 Days'],
+                ['currentMonth', 'Current Month'],
+                ['lastMonth', 'Last Month'],
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => handleOptionSelect(key as DateFilterOption)}
+                  className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
+                    value === key
+                      ? 'bg-indigo-50 text-indigo-700 font-medium'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+
+              {/* CUSTOM RANGE */}
+              <div className="mt-2 border-t pt-2">
+                <div className="text-xs text-gray-500 px-3 mb-1">Custom Range</div>
+
+                <div className="px-3 flex flex-col gap-2">
+                  <input
+                    type="date"
+                    value={customStart}
+                    onChange={(e) => setCustomStart(e.target.value)}
+                    className="border rounded px-2 py-1 text-sm"
+                  />
+                  <input
+                    type="date"
+                    value={customEnd}
+                    onChange={(e) => setCustomEnd(e.target.value)}
+                    className="border rounded px-2 py-1 text-sm"
+                  />
+
+                  <button
+                    onClick={handleCustomApply}
+                    className="bg-indigo-600 text-white text-sm py-1 rounded hover:bg-indigo-700"
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+
             </div>
           </div>
         </>
@@ -176,4 +184,3 @@ const DateFilter: React.FC<DateFilterProps> = ({ value, onChange }) => {
 };
 
 export default DateFilter;
-
