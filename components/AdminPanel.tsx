@@ -5,7 +5,7 @@ import { Download, Upload, Database, Loader2, AlertCircle, LogOut } from 'lucide
 import { useNavigate } from 'react-router-dom';
 import { ADMIN_AUTH_KEY } from './AdminLogin';
 
-const TEMPLATE_URL = '/analytics-data%20.xlsx';
+const TEMPLATE_URL = '/analytics-data.xlsx';
 
 const AdminPanel: React.FC = () => {
   const navigate = useNavigate();

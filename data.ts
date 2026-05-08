@@ -357,7 +357,7 @@ async function loadExcelData(): Promise<Record<PlatformKey, PlatformData>> {
   }
 
   try {
-    const response = await fetch('/analytics-data%20.xlsx');
+    const response = await fetch('/analytics-data.xlsx');
     if (!response.ok) {
       throw new Error(`Failed to fetch Excel file: ${response.statusText}`);
     }
@@ -581,7 +581,7 @@ export async function loadOverallReportsData(): Promise<OverallReportsData> {
   }
 
   try {
-    const response = await fetch('/analytics-data%20.xlsx');
+    const response = await fetch('/analytics-data.xlsx');
     if (!response.ok) {
       throw new Error(`Failed to fetch Excel file: ${response.statusText}`);
     }
