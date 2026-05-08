@@ -299,7 +299,7 @@ const App: React.FC = () => {
             <h2 className="text-lg font-semibold text-red-800 mb-2">Error Loading Data</h2>
             <p className="text-red-600 mb-4">{error}</p>
             <p className="text-sm text-gray-600">
-              Please ensure the Excel file (analytics-data.xlsx) is in the public folder.
+              Please ensure the Excel file (analytics-data .xlsx) is in the public folder.
             </p>
           </div>
         </div>
