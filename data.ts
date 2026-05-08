@@ -420,117 +420,142 @@ let cachedReportsData: OverallReportsData | null = null;
  */
 function parseSheetDataToReports(sheetData: any[][]): OverallReportsData {
   const metricMap: Record<string, any> = {};
-    for (let i = 1; i < sheetData.length; i++) {
-      const row = sheetData[i];
-      if (row && row[0] && String(row[0]).startsWith('Report_')) {
-        const metricName = String(row[0]);
-        // For reports, the value is in the second column (index 1)
-        metricMap[metricName] = row[1] || '';
-      }
+  for (let i = 1; i < sheetData.length; i++) {
+    const row = sheetData[i];
+    if (row && row[0] && String(row[0]).startsWith('Report_')) {
+      const metricName = String(row[0]);
+      metricMap[metricName] = row[1] || '';
     }
+  }
 
-    const months: MonthlyReport[] = [];
-    const monthConfigs = [
-      { key: 'Oct', name: 'October', year: 2025 },
-      { key: 'Nov', name: 'November', year: 2025 },
-      { key: 'Dec', name: 'December', year: 2025 }
-    ];
-
-    monthConfigs.forEach(monthConfig => {
-      const weeks: WeeklyReport[] = [];
-
-      // Extract data for each week (1-4)
-      for (let weekNum = 1; weekNum <= 4; weekNum++) {
-        const dateRange = metricMap[`Report_${monthConfig.key}_Week${weekNum}_DateRange`] || '';
-        const sent = Number(metricMap[`Report_${monthConfig.key}_Week${weekNum}_Sent`]) || 0;
-        const approved = Number(metricMap[`Report_${monthConfig.key}_Week${weekNum}_Approved`]) || 0;
-        const removed = Number(metricMap[`Report_${monthConfig.key}_Week${weekNum}_Removed`]) || 0;
-        const pending = Number(metricMap[`Report_${monthConfig.key}_Week${weekNum}_Pending`]) || 0;
-        const removalRateStr = metricMap[`Report_${monthConfig.key}_Week${weekNum}_RemovalRate`];
-        const removalRate = typeof removalRateStr === 'string' 
-          ? parseFloat(removalRateStr) || 0 
-          : Number(removalRateStr) || 0;
-
-        weeks.push({
-          dateRange: String(dateRange),
-          totalSent: sent,
-          totalApproved: approved,
-          totalRemoved: removed,
-          pendingLinks: pending,
-          removalRate: removalRate
-        });
-      }
-
-      // Extract monthly summary
-      const monthlyDateRange = metricMap[`Report_${monthConfig.key}_Monthly_DateRange`] || `${monthConfig.name} 2025`;
-      const monthlySent = Number(metricMap[`Report_${monthConfig.key}_Monthly_Sent`]) || 0;
-      const monthlyApproved = Number(metricMap[`Report_${monthConfig.key}_Monthly_Approved`]) || 0;
-      const monthlyRemoved = Number(metricMap[`Report_${monthConfig.key}_Monthly_Removed`]) || 0;
-      const monthlyPending = Number(metricMap[`Report_${monthConfig.key}_Monthly_Pending`]) || 0;
-      const monthlyRemovalRateStr = metricMap[`Report_${monthConfig.key}_Monthly_RemovalRate`];
-      const monthlyRemovalRate = typeof monthlyRemovalRateStr === 'string'
-        ? parseFloat(monthlyRemovalRateStr) || 0
-        : Number(monthlyRemovalRateStr) || 0;
-
-      // Extract platform-wise monthly data
-      const platformData: MonthlyPlatformData = {
-        youtube: {
-          scanned: Number(metricMap[`Report_${monthConfig.key}_Platform_YouTube_Scanned`]) || 0,
-          approved: Number(metricMap[`Report_${monthConfig.key}_Platform_YouTube_Approved`]) || 0,
-          removed: Number(metricMap[`Report_${monthConfig.key}_Platform_YouTube_Removed`]) || 0,
-          removalRate: (() => {
-            const rateStr = metricMap[`Report_${monthConfig.key}_Platform_YouTube_RemovalRate`];
-            return typeof rateStr === 'string' ? parseFloat(rateStr) || 0 : Number(rateStr) || 0;
-          })()
-        },
-        instagram: {
-          scanned: Number(metricMap[`Report_${monthConfig.key}_Platform_Instagram_Scanned`]) || 0,
-          approved: Number(metricMap[`Report_${monthConfig.key}_Platform_Instagram_Approved`]) || 0,
-          removed: Number(metricMap[`Report_${monthConfig.key}_Platform_Instagram_Removed`]) || 0,
-          removalRate: (() => {
-            const rateStr = metricMap[`Report_${monthConfig.key}_Platform_Instagram_RemovalRate`];
-            return typeof rateStr === 'string' ? parseFloat(rateStr) || 0 : Number(rateStr) || 0;
-          })()
-        },
-        weblink: {
-          scanned: Number(metricMap[`Report_${monthConfig.key}_Platform_Weblink_Scanned`]) || 0,
-          approved: Number(metricMap[`Report_${monthConfig.key}_Platform_Weblink_Approved`]) || 0,
-          removed: Number(metricMap[`Report_${monthConfig.key}_Platform_Weblink_Removed`]) || 0,
-          removalRate: (() => {
-            const rateStr = metricMap[`Report_${monthConfig.key}_Platform_Weblink_RemovalRate`];
-            return typeof rateStr === 'string' ? parseFloat(rateStr) || 0 : Number(rateStr) || 0;
-          })()
-        }
+  // Dynamically extract all months present in the data
+  const monthSet = new Set<string>();
+  const monthYearMap: Record<string, { key: string; name: string; year: number }> = {};
+  Object.keys(metricMap).forEach((metricKey) => {
+    const match = metricKey.match(/^Report_([A-Za-z]+)_Week\d+_DateRange$/);
+    if (match) {
+      const key = match[1];
+      // Try to infer month name and year from the date range if possible
+      let name = key;
+      let year = new Date().getFullYear();
+      // Try to get a proper month name
+      const monthNames: Record<string, string> = {
+        Jan: 'January', Feb: 'February', Mar: 'March', Apr: 'April', May: 'May', Jun: 'June',
+        Jul: 'July', Aug: 'August', Sep: 'September', Oct: 'October', Nov: 'November', Dec: 'December'
       };
-
-      // Add Facebook data only for December
-      if (monthConfig.key === 'Dec') {
-        platformData.facebook = {
-          scanned: Number(metricMap[`Report_${monthConfig.key}_Platform_Facebook_Scanned`]) || 0,
-          approved: Number(metricMap[`Report_${monthConfig.key}_Platform_Facebook_Approved`]) || 0,
-          removed: Number(metricMap[`Report_${monthConfig.key}_Platform_Facebook_Removed`]) || 0,
-          removalRate: (() => {
-            const rateStr = metricMap[`Report_${monthConfig.key}_Platform_Facebook_RemovalRate`];
-            return typeof rateStr === 'string' ? parseFloat(rateStr) || 0 : Number(rateStr) || 0;
-          })()
-        };
+      if (monthNames[key]) name = monthNames[key];
+      // Try to extract year from the date range string
+      const dateRange = metricMap[metricKey];
+      if (typeof dateRange === 'string') {
+        const yearMatch = dateRange.match(/\b(20\d{2})\b/);
+        if (yearMatch) year = parseInt(yearMatch[1], 10);
       }
+      monthSet.add(key);
+      monthYearMap[key] = { key, name, year };
+    }
+  });
 
-      months.push({
-        month: monthConfig.name,
-        year: monthConfig.year,
-        weeks: weeks,
-        monthly: {
-          dateRange: String(monthlyDateRange),
-          totalSent: monthlySent,
-          totalApproved: monthlyApproved,
-          totalRemoved: monthlyRemoved,
-          pendingLinks: monthlyPending,
-          removalRate: monthlyRemovalRate
-        },
-        platformData: platformData
+  // Sort months by year and month order
+  const monthOrder = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const sortedMonths = Array.from(monthSet).sort((a, b) => {
+    const yA = monthYearMap[a]?.year || 0;
+    const yB = monthYearMap[b]?.year || 0;
+    if (yA !== yB) return yA - yB;
+    return monthOrder.indexOf(a) - monthOrder.indexOf(b);
+  });
+
+  const months: MonthlyReport[] = [];
+  sortedMonths.forEach((monthKey) => {
+    const monthConfig = monthYearMap[monthKey];
+    const weeks: WeeklyReport[] = [];
+    for (let weekNum = 1; weekNum <= 4; weekNum++) {
+      const dateRange = metricMap[`Report_${monthKey}_Week${weekNum}_DateRange`] || '';
+      const sent = Number(metricMap[`Report_${monthKey}_Week${weekNum}_Sent`]) || 0;
+      const approved = Number(metricMap[`Report_${monthKey}_Week${weekNum}_Approved`]) || 0;
+      const removed = Number(metricMap[`Report_${monthKey}_Week${weekNum}_Removed`]) || 0;
+      const pending = Number(metricMap[`Report_${monthKey}_Week${weekNum}_Pending`]) || 0;
+      const removalRateStr = metricMap[`Report_${monthKey}_Week${weekNum}_RemovalRate`];
+      const removalRate = typeof removalRateStr === 'string' 
+        ? parseFloat(removalRateStr) || 0 
+        : Number(removalRateStr) || 0;
+      weeks.push({
+        dateRange: String(dateRange),
+        totalSent: sent,
+        totalApproved: approved,
+        totalRemoved: removed,
+        pendingLinks: pending,
+        removalRate: removalRate
       });
+    }
+    // Extract monthly summary
+    const monthlyDateRange = metricMap[`Report_${monthKey}_Monthly_DateRange`] || `${monthConfig.name} ${monthConfig.year}`;
+    const monthlySent = Number(metricMap[`Report_${monthKey}_Monthly_Sent`]) || 0;
+    const monthlyApproved = Number(metricMap[`Report_${monthKey}_Monthly_Approved`]) || 0;
+    const monthlyRemoved = Number(metricMap[`Report_${monthKey}_Monthly_Removed`]) || 0;
+    const monthlyPending = Number(metricMap[`Report_${monthKey}_Monthly_Pending`]) || 0;
+    const monthlyRemovalRateStr = metricMap[`Report_${monthKey}_Monthly_RemovalRate`];
+    const monthlyRemovalRate = typeof monthlyRemovalRateStr === 'string'
+      ? parseFloat(monthlyRemovalRateStr) || 0
+      : Number(monthlyRemovalRateStr) || 0;
+
+    // Extract platform-wise monthly data
+    const platformData: MonthlyPlatformData = {
+      youtube: {
+        scanned: Number(metricMap[`Report_${monthKey}_Platform_YouTube_Scanned`]) || 0,
+        approved: Number(metricMap[`Report_${monthKey}_Platform_YouTube_Approved`]) || 0,
+        removed: Number(metricMap[`Report_${monthKey}_Platform_YouTube_Removed`]) || 0,
+        removalRate: (() => {
+          const rateStr = metricMap[`Report_${monthKey}_Platform_YouTube_RemovalRate`];
+          return typeof rateStr === 'string' ? parseFloat(rateStr) || 0 : Number(rateStr) || 0;
+        })()
+      },
+      instagram: {
+        scanned: Number(metricMap[`Report_${monthKey}_Platform_Instagram_Scanned`]) || 0,
+        approved: Number(metricMap[`Report_${monthKey}_Platform_Instagram_Approved`]) || 0,
+        removed: Number(metricMap[`Report_${monthKey}_Platform_Instagram_Removed`]) || 0,
+        removalRate: (() => {
+          const rateStr = metricMap[`Report_${monthKey}_Platform_Instagram_RemovalRate`];
+          return typeof rateStr === 'string' ? parseFloat(rateStr) || 0 : Number(rateStr) || 0;
+        })()
+      },
+      weblink: {
+        scanned: Number(metricMap[`Report_${monthKey}_Platform_Weblink_Scanned`]) || 0,
+        approved: Number(metricMap[`Report_${monthKey}_Platform_Weblink_Approved`]) || 0,
+        removed: Number(metricMap[`Report_${monthKey}_Platform_Weblink_Removed`]) || 0,
+        removalRate: (() => {
+          const rateStr = metricMap[`Report_${monthKey}_Platform_Weblink_RemovalRate`];
+          return typeof rateStr === 'string' ? parseFloat(rateStr) || 0 : Number(rateStr) || 0;
+        })()
+      }
+    };
+    // Add Facebook data if present for this month
+    const fbScanned = metricMap[`Report_${monthKey}_Platform_Facebook_Scanned`];
+    if (typeof fbScanned !== 'undefined') {
+      platformData.facebook = {
+        scanned: Number(metricMap[`Report_${monthKey}_Platform_Facebook_Scanned`]) || 0,
+        approved: Number(metricMap[`Report_${monthKey}_Platform_Facebook_Approved`]) || 0,
+        removed: Number(metricMap[`Report_${monthKey}_Platform_Facebook_Removed`]) || 0,
+        removalRate: (() => {
+          const rateStr = metricMap[`Report_${monthKey}_Platform_Facebook_RemovalRate`];
+          return typeof rateStr === 'string' ? parseFloat(rateStr) || 0 : Number(rateStr) || 0;
+        })()
+      };
+    }
+    months.push({
+      month: monthConfig.name,
+      year: monthConfig.year,
+      weeks: weeks,
+      monthly: {
+        dateRange: String(monthlyDateRange),
+        totalSent: monthlySent,
+        totalApproved: monthlyApproved,
+        totalRemoved: monthlyRemoved,
+        pendingLinks: monthlyPending,
+        removalRate: monthlyRemovalRate
+      },
+      platformData: platformData
     });
+  });
 
   return { months };
 }
